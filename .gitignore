@@ -1,0 +1,7 @@
+# User-specific stuff:
+.idea/
+src/config.pyc
+
+# input and output file directories
+log_input/
+log_output/
