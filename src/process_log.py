@@ -1,14 +1,15 @@
 import re
 import pandas as pd
-import collections
-from config import log_file_path
+from config import log_file_path, number_of_active_hosts, number_of_top_resources, number_of_busiest_periods, period_window
 
 regex = re.compile(r"([^\s]+).*?\[(.*)?\s(.*)?\][\s]+\"(.*)?\"[\s]+([^\s]+)[\s]+([^\s]+)")
 
 log_file = open(log_file_path)
 
 
-def parse_log_file(input_file = None, regular_exp = None):
+def parse_log_file(input_file=None, regular_exp=None):
+
+    print "\nStarted parsing the log file..."
 
     if input_file is None or regular_exp is None:
         return
@@ -27,8 +28,11 @@ def parse_log_file(input_file = None, regular_exp = None):
         else:
             invalid_records.append(line)
 
-    print 'Number of valid records in file : {}'.format(len(valid_records))
-    print 'Number of invalid records in file : {}'.format(len(invalid_records))
+    print "Log file parsing completed!!"
+
+    print 'Total records : {} | Valid records  : {} | Invalid records : {}'\
+        .format((len(valid_records)+len(invalid_records)),
+                len(valid_records), len(invalid_records))
 
     return valid_records, invalid_records
 
@@ -76,6 +80,42 @@ def get_top_n_resources_max_bandwidth(n=0, input_data_frame=None):
 
     return df_resources_bandwidth['uri'][0:n]
 
+
+def get_top_n_busiest_periods(n=0, period_in_minutes=0, input_data_frame=None):
+
+    if n == 0 or period_in_minutes == 0 or input_data_frame is None:
+        return
+
+    df_timestamp_visit_count = input_data_frame['timestamp'].value_counts().to_frame(name='num_visits')
+
+    min_timestamp_value = df_timestamp_visit_count.index.min(axis=0)
+    max_timestamp_value = df_timestamp_visit_count.index.max(axis=0)
+
+    new_index_range = pd.date_range(start=min_timestamp_value, end=max_timestamp_value, freq='S')
+
+    df_timestamp_visit_count = df_timestamp_visit_count.reindex(new_index_range, fill_value=0)
+
+    sliding_window_size = period_in_minutes * 60
+
+    df_timestamp_visit_count['num_visits_in_window'] = df_timestamp_visit_count.rolling(
+        window=sliding_window_size).sum().shift(-(sliding_window_size - 1))
+
+    total_records = len(df_timestamp_visit_count)
+
+    for i in range(1, sliding_window_size):
+        df_timestamp_visit_count.set_value(df_timestamp_visit_count.index[total_records + i - sliding_window_size],
+                                           'num_visits_in_window',
+                                           sum(df_timestamp_visit_count['num_visits'][i - sliding_window_size:]))
+
+    timezone = list(set(input_data_frame['timezone']))[0]
+
+    df_timestamp_visit_count.sort_values('num_visits_in_window', ascending=False, inplace=True)
+
+    busiest_periods = [str(pd.to_datetime(df_timestamp_visit_count.index[i])) + ' ' + str(timezone) + ',' + str(
+        df_timestamp_visit_count['num_visits_in_window'][i]) for i in range(n)]
+
+    return busiest_periods
+
 parsed_records, bad_records = parse_log_file(input_file=log_file, regular_exp=regex)
 
 column_headers = ['host_name', 'timestamp', 'timezone', 'http_request', 'http_status_code',
@@ -83,6 +123,18 @@ column_headers = ['host_name', 'timestamp', 'timezone', 'http_request', 'http_st
 
 df_log_data = get_data_frame(input_records=parsed_records, column_names=column_headers)
 
-top_active_hosts = get_top_n_active_hosts(n=10, input_data_frame=df_log_data)
+top_active_hosts = get_top_n_active_hosts(n=number_of_active_hosts, input_data_frame=df_log_data)
 
-top_n_resources = get_top_n_resources_max_bandwidth(n=10, input_data_frame=df_log_data)
+top_resources = get_top_n_resources_max_bandwidth(n=number_of_top_resources, input_data_frame=df_log_data)
+
+top_busy_periods = get_top_n_busiest_periods(n=number_of_busiest_periods, period_in_minutes=period_window,
+                                             input_data_frame=df_log_data)
+
+print ("\nTop " + str(number_of_active_hosts) + " active hosts (host_name, #visit) : ")
+print("\n".join(top_active_hosts))
+
+print ("\nTop " + str(number_of_top_resources) + " resources : ")
+print("\n".join(top_resources))
+
+print ("\nBusiest " + str(number_of_busiest_periods) + " periods : ")
+print ("\n".join(top_busy_periods))
