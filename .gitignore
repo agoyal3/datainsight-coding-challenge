@@ -3,5 +3,5 @@
 src/config.pyc
 
 # input and output file directories
-log_input/
-log_output/
+log_input/*
+log_output/*
