@@ -1,6 +1,6 @@
 import re
 import pandas as pd
-from config import log_file_path, number_of_active_hosts, number_of_top_resources, number_of_busiest_periods, period_window
+from config import log_file_path, number_of_active_hosts, number_of_top_resources, number_of_busiest_periods, busy_period_window_in_min
 
 regex = re.compile(r"([^\s]+).*?\[(.*)?\s(.*)?\][\s]+\"(.*)?\"[\s]+([^\s]+)[\s]+([^\s]+)")
 
@@ -107,6 +107,8 @@ def get_top_n_busiest_periods(n=0, period_in_minutes=0, input_data_frame=None):
                                            'num_visits_in_window',
                                            sum(df_timestamp_visit_count['num_visits'][i - sliding_window_size:]))
 
+    df_timestamp_visit_count['num_visits_in_window'] = df_timestamp_visit_count['num_visits_in_window'].astype('int64')
+
     timezone = list(set(input_data_frame['timezone']))[0]
 
     df_timestamp_visit_count.sort_values('num_visits_in_window', ascending=False, inplace=True)
@@ -125,16 +127,16 @@ df_log_data = get_data_frame(input_records=parsed_records, column_names=column_h
 
 top_active_hosts = get_top_n_active_hosts(n=number_of_active_hosts, input_data_frame=df_log_data)
 
-top_resources = get_top_n_resources_max_bandwidth(n=number_of_top_resources, input_data_frame=df_log_data)
-
-top_busy_periods = get_top_n_busiest_periods(n=number_of_busiest_periods, period_in_minutes=period_window,
-                                             input_data_frame=df_log_data)
-
-print ("\nTop " + str(number_of_active_hosts) + " active hosts (host_name, #visit) : ")
+print ("\nTop " + str(number_of_active_hosts) + " active hosts (host_name, #visits): ")
 print("\n".join(top_active_hosts))
 
-print ("\nTop " + str(number_of_top_resources) + " resources : ")
+top_resources = get_top_n_resources_max_bandwidth(n=number_of_top_resources, input_data_frame=df_log_data)
+
+print ("\nTop " + str(number_of_top_resources) + " resources (URI): ")
 print("\n".join(top_resources))
 
-print ("\nBusiest " + str(number_of_busiest_periods) + " periods : ")
+top_busy_periods = get_top_n_busiest_periods(n=number_of_busiest_periods, period_in_minutes=busy_period_window_in_min,
+                                             input_data_frame=df_log_data)
+
+print ("\nBusiest " + str(number_of_busiest_periods) + " periods (period_start_time, #visits): ")
 print ("\n".join(top_busy_periods))
