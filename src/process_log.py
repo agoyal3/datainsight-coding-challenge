@@ -58,8 +58,23 @@ def get_top_n_active_hosts(n=0, input_data_frame=None):
 
     host_visit_counts = input_data_frame['host_name'].value_counts(dropna=True)
 
-    return zip(host_visit_counts.index[0:n], host_visit_counts[0:n])
+    top_n_active_hosts = [str(host_visit_counts.index[i]) + ',' + str(host_visit_counts[i]) for i in range(n)]
 
+    return top_n_active_hosts
+
+
+def get_top_n_resources_max_bandwidth(n=0, input_data_frame=None):
+
+    if n == 0 or input_data_frame is None:
+        return
+
+    grouped_object = input_data_frame.groupby(['uri'], as_index=True)['bytes_transferred'].sum()
+
+    df_resources_bandwidth = pd.DataFrame({'uri': grouped_object.index,
+                                           'bandwidth_used': grouped_object.values}).sort_values(['bandwidth_used'],
+                                                                                                 ascending=False)
+
+    return df_resources_bandwidth['uri'][0:n]
 
 parsed_records, bad_records = parse_log_file(input_file=log_file, regular_exp=regex)
 
@@ -70,4 +85,4 @@ df_log_data = get_data_frame(input_records=parsed_records, column_names=column_h
 
 top_active_hosts = get_top_n_active_hosts(n=10, input_data_frame=df_log_data)
 
-print top_active_hosts
+top_n_resources = get_top_n_resources_max_bandwidth(n=10, input_data_frame=df_log_data)
