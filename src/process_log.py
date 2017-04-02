@@ -1,10 +1,7 @@
 import re
 import pandas as pd
-from config import log_file_path, number_of_active_hosts, number_of_top_resources, number_of_busiest_periods, busy_period_window_in_min
-
-regex = re.compile(r"([^\s]+).*?\[(.*)?\s(.*)?\][\s]+\"(.*)?\"[\s]+([^\s]+)[\s]+([^\s]+)")
-
-log_file = open(log_file_path)
+from config import log_file, hosts_file, resources_file, blocked_file, hours_file, \
+    number_of_active_hosts, number_of_top_resources, number_of_busiest_periods, busy_period_window_in_min
 
 
 def parse_log_file(input_file=None, regular_exp=None):
@@ -118,6 +115,25 @@ def get_top_n_busiest_periods(n=0, period_in_minutes=0, input_data_frame=None):
 
     return busiest_periods
 
+
+def write_to_file(output_file=None, input_data=None):
+
+    if output_file is None or input_data is None:
+        return
+
+    out_file = open(output_file, 'w')
+
+    print ("\nWriting output to " + output_file)
+
+    out_file.write("\n".join(input_data))
+
+    print ("Output written successfully!!")
+
+
+regex = re.compile(r"([^\s]+).*?\[(.*)?\s(.*)?\][\s]+\"(.*)?\"[\s]+([^\s]+)[\s]+([^\s]+)")
+
+log_file = open(log_file)
+
 parsed_records, bad_records = parse_log_file(input_file=log_file, regular_exp=regex)
 
 column_headers = ['host_name', 'timestamp', 'timezone', 'http_request', 'http_status_code',
@@ -130,13 +146,20 @@ top_active_hosts = get_top_n_active_hosts(n=number_of_active_hosts, input_data_f
 print ("\nTop " + str(number_of_active_hosts) + " active hosts (host_name, #visits): ")
 print("\n".join(top_active_hosts))
 
+write_to_file(output_file=hosts_file, input_data=top_active_hosts)
+
 top_resources = get_top_n_resources_max_bandwidth(n=number_of_top_resources, input_data_frame=df_log_data)
 
 print ("\nTop " + str(number_of_top_resources) + " resources (URI): ")
 print("\n".join(top_resources))
+
+write_to_file(output_file=resources_file, input_data=top_resources)
+
 
 top_busy_periods = get_top_n_busiest_periods(n=number_of_busiest_periods, period_in_minutes=busy_period_window_in_min,
                                              input_data_frame=df_log_data)
 
 print ("\nBusiest " + str(number_of_busiest_periods) + " periods (period_start_time, #visits): ")
 print ("\n".join(top_busy_periods))
+
+write_to_file(output_file=hours_file, input_data=top_busy_periods)
