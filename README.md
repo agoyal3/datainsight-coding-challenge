@@ -310,16 +310,16 @@ Successful scenario output:
 	Log file parsing completed!!
 	Total records : 4400644 | Valid records  : 4400644 | Invalid records : 0
 
-	Writing output to /mnt/Ankit/workspaces/pycharm/fansite-analytics-challenge/log_output/hosts.txt
+	Writing output to ../log_output/hosts.txt
 	Output written successfully!!
 
-	Writing output to /mnt/Ankit/workspaces/pycharm/fansite-analytics-challenge/log_output/resources.txt
+	Writing output to ../log_output/resources.txt
 	Output written successfully!!
 
-	Writing output to /mnt/Ankit/workspaces/pycharm/fansite-analytics-challenge/log_output/hours.txt
+	Writing output to ../log_output/hours.txt
 	Output written successfully!!
 
-	Writing output to /mnt/Ankit/workspaces/pycharm/fansite-analytics-challenge/log_output/blocked.txt
+	Writing output to ../log_output/blocked.txt
 	Output written successfully!!
 
 	--- 98.736390114 seconds ---
