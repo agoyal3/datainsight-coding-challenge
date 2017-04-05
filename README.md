@@ -10,6 +10,7 @@
 	3. [Feature 3](README.md#feature-3)  
 	4. [Feature 4](README.md#feature-4)  
 5. [Run the program](README.md#run-the-program)
+6. [References](README.md#references)
 
 
 ## Introduction
@@ -23,11 +24,12 @@ could be found [here](challenge-description.md). The overview of the challenge i
 - [pandas v0.19.2](http://pandas.pydata.org/pandas-docs/stable/)  
 	pandas is a Python package which provides fast, flexible, and expressive data structures designed to make working with “relational” or “labeled” data both easy and intuitive. It aims to be the fundamental high-level building block for doing practical, real world data analysis in Python. 
 	
-	The package can be installed in different ways, as described [here](http://pandas.pydata.org/pandas-docs/stable/install.html).   
 	
 	Install using pip command:
 
 		pip install pandas
+		
+	The package can be installed in different ways, as described [here](http://pandas.pydata.org/pandas-docs/stable/install.html).  
 	 
 	 
 ## Dataset
@@ -342,10 +344,6 @@ Few Failure scenarios:
 
 
 
+## References
 
-	
-	
-
-
-
-
+- [pandas official documentation](http://pandas.pydata.org/pandas-docs/stable/index.html)
