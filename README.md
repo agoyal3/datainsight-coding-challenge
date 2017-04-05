@@ -240,7 +240,7 @@ First step is to filter the list of hosts with 3 or more than 3 login failure at
 The filtered host list is then used to fetch the rows from the original dataframe corresponding to these hosts using isin() function.
 
 ##### Getting blocked attempts and writing the output
-For every host in the filtered hosts list, the rows corresponding to that host are fetched from the filtered hosts dataframe and sorted based on timestamp. A loop is executed to check for 3 consecutive login failure attempts within login failure time period i.e. 20 seconds. Few trackers like `consecutive_failed_attempts_counter`,`consecutive_failure_time_gap` and `last_failed_attempt_timestamp` are used to perform various conditional checks. If found, then another while loop is executed to record all the blocked attempts for next 5 mins in `blocked_records` list, else the trackers are reset. All the trackers are also reset after 5 min window. Once the list is obtained, then it is written to `blocked.txt`.
+For every host in the filtered hosts list, the rows corresponding to that host are fetched from the filtered hosts dataframe and sorted based on timestamp. A loop is executed to iterate over each row in the filtered hosts dataframe. Within loop a sliced dataframe of size 3 i.e. consecutive login failure limit is created. All the consecutive login failure conditions are checked on this sliced dataframe. If all conditions are met, then another while loop is executed to record all the blocked attempts for next 5 mins in `blocked_records` list, else the outer loop is iterated over next set of rows. Once the blocked_records list is obtained, then it is written to `blocked.txt`.
 
 Potential blocked attempts `head blocked.txt`:
 
@@ -303,7 +303,58 @@ Expected output for above case:
 	199.72.81.55 - - [01/Jul/1995:00:06:30 -0400] "POST /login HTTP/1.0" 401 1420
 	199.72.81.55 - - [01/Jul/1995:00:07:17 -0400] "POST /login HTTP/1.0" 401 1420
 
-There are total 23 records in the custom test case with valid and invalid login attempts for host `199.72.81.55`. After first 2 invalid login attempts there is a successful login, which will reset the failure counters and trackers. Now the host has three consecutive login attempts but the failure time window for 3rd attempt exceeds 
+The above test case tests various scenarios described in the [feature4.png](https://github.com/agoyal3/datainsight-coding-challenge/tree/master/images/feature4.png). 
+
+##### Scenario 1
+A successful login after two failed attempts resets the failure window.
+
+	199.72.81.55 - - [01/Jul/1995:00:00:01 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:00:09 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:00:20 -0400] "POST /login HTTP/1.0" 200 1420
+	
+##### Scenario 2
+Three consecutive login failures but outside 20 seconds time window.
+
+	199.72.81.55 - - [01/Jul/1995:00:00:23 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:00:34 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:00:45 -0400] "POST /login HTTP/1.0" 401 1420
+
+##### Scenario 3
+Three consecutive login failures within 20 second window.
+
+	199.72.81.55 - - [01/Jul/1995:00:00:34 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:00:45 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:00:46 -0400] "POST /login HTTP/1.0" 401 1420
+	
+Block attempts for next 5 mins until `01/Jul/1995:00:05:46 -0400`:
+	
+	199.72.81.55 - - [01/Jul/1995:00:00:47 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:00:50 -0400] "POST /login HTTP/1.0" 200 1420
+	199.72.81.55 - - [01/Jul/1995:00:00:58 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:00:59 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:01:00 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:01:47 -0400] "POST /login HTTP/1.0" 200 1420
+
+The failure window resets from `01/Jul/1995:00:05:47 -0400` onwards so following entries not logged.
+
+##### Scenario 4
+Again 3 consecutive failures after 5 minutes block attempts window.
+
+	199.72.81.55 - - [01/Jul/1995:00:05:48 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:05:49 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:05:50 -0400] "POST /login HTTP/1.0" 401 1420
+
+Block attempts for next 5 mins until `01/Jul/1995:00:010:50 -0400`:
+
+	199.72.81.55 - - [01/Jul/1995:00:06:00 -0400] "POST /login HTTP/1.0" 200 1420
+	199.72.81.55 - - [01/Jul/1995:00:06:10 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:06:14 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:06:30 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:07:17 -0400] "POST /login HTTP/1.0" 401 1420
+	
+Last record falls outside the 5 minute window so its not recorded in the blocked attempts.
+
+
 
 ## Run the program
 
