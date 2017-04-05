@@ -1,6 +1,6 @@
 # datainsight-coding-challenge
 
-# Table of Contents
+## Table of Contents
 1. [Introduction](README.md#introduction)
 2. [Dataset](README.md#dataset)
 3. [Data Loading](README.md#data-loading)
