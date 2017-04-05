@@ -1,7 +1,11 @@
 # User-specific stuff:
 .idea/
-src/config.pyc
 
 # input and output file directories
 log_input/*
 log_output/*
+
+insightinsight_testsuite/results.txt
+insight_testsuite/temp/*
+
+
