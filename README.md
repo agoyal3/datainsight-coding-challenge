@@ -102,6 +102,7 @@ The column headers are specified for all the columns to allow us to query later 
 - Generate `http_method` and `uri` columns from the `http_request` column by splitting the `http_request` column values by space. Some of the http requests have http request method and HTTP version missing, so only URI column is updated and others are left blank.   
 	e.g.;   `'klothos.crl.research.digital.com - - [10/Jul/1995:16:45:50 -0400] "\x05\x01" 400 -'`   
 - Added a log_entry column containing the complete log line read from the server log file.   
+- Filter out the rows with empty http_request field.
 
 Dataframe datatypes:
 
@@ -258,6 +259,51 @@ Potential blocked attempts `head blocked.txt`:
 
 Total potential blocked attempts found `wc -l blocked.txt` : `1758`
 
+
+#### Custom test_case for Feature 4
+
+Let's assume the input log file to have below entries:
+
+	199.72.81.55 - - [01/Jul/1995:00:00:01 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:00:09 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:00:20 -0400] "POST /login HTTP/1.0" 200 1420
+	199.72.81.55 - - [01/Jul/1995:00:00:23 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:00:34 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:00:45 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:00:46 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:00:47 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:00:50 -0400] "POST /login HTTP/1.0" 200 1420
+	199.72.81.55 - - [01/Jul/1995:00:00:58 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:00:59 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:01:00 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:01:47 -0400] "POST /login HTTP/1.0" 200 1420
+	199.72.81.55 - - [01/Jul/1995:00:05:47 -0400] "POST /login HTTP/1.0" 200 1420
+	199.72.81.55 - - [01/Jul/1995:00:05:48 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:05:49 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:05:50 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:06:00 -0400] "POST /login HTTP/1.0" 200 1420
+	199.72.81.55 - - [01/Jul/1995:00:06:10 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:06:14 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:06:30 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:07:17 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:10:51 -0400] "POST /login HTTP/1.0" 401 1420
+	
+	
+Expected output for above case:
+
+	199.72.81.55 - - [01/Jul/1995:00:00:47 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:00:50 -0400] "POST /login HTTP/1.0" 200 1420
+	199.72.81.55 - - [01/Jul/1995:00:00:58 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:00:59 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:01:00 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:01:47 -0400] "POST /login HTTP/1.0" 200 1420
+	199.72.81.55 - - [01/Jul/1995:00:06:00 -0400] "POST /login HTTP/1.0" 200 1420
+	199.72.81.55 - - [01/Jul/1995:00:06:10 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:06:14 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:06:30 -0400] "POST /login HTTP/1.0" 401 1420
+	199.72.81.55 - - [01/Jul/1995:00:07:17 -0400] "POST /login HTTP/1.0" 401 1420
+
+There are total 23 records in the custom test case with valid and invalid login attempts for host `199.72.81.55`. After first 2 invalid login attempts there is a successful login, which will reset the failure counters and trackers. Now the host has three consecutive login attempts but the failure time window for 3rd attempt exceeds 
 
 ## Run the program
 
