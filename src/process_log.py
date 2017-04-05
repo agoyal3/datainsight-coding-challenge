@@ -301,6 +301,10 @@ def get_top_n_busiest_periods(n=0, period_in_minutes=0, input_data_frame=None):
     # sorting the dataframe in descending order based on the number of visits in the period window.
     df_timestamp_visit_count.sort_values('num_visits_in_window', ascending=False, inplace=True)
 
+    # if the number of timestamps in the dataframe is less than n, update the n to length of dataframe.
+    if len(df_timestamp_visit_count) < n:
+        n = len(df_timestamp_visit_count)
+
     # list of top n busiest periods
     busiest_periods = [pd.to_datetime(df_timestamp_visit_count.index[i]).strftime('%d/%b/%Y:%H:%M:%S') +
                        ' ' + str(timezone) + ',' +
