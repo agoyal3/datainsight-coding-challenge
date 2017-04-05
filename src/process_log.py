@@ -120,25 +120,27 @@ def get_data_frame(input_records=None):
         # change the timestamp to datetime format
         df_data['timestamp'] = pd.to_datetime(df_data['timestamp'], format='%d/%b/%Y:%H:%M:%S')
 
+        # remove all the rows with empty http_request field
+        df_data['http_request'] = [str(x).strip() for x in df_data['http_request']]
+        df_data = df_data[df_data['http_request'] != '']
+
         # create http method and uri columns from the http request column
         df_data['http_method'] = [x.split()[0] if len(x.split()) > 1 else '' for x in df_data['http_request']]
         df_data['uri'] = [x.split()[1] if len(x.split()) > 1 else x.split()[0] for x in df_data['http_request']]
 
-    except ValueError as v:
+    except ValueError:
         # print error message if the column data type conversion is invalid and exit the program
         print "Error while converting data types of pandas data frame columns"
-        print "Value error({0}): {1}".format(v.errno, v.strerror)
         sys.exit()
 
-    except AssertionError as a:
+    except AssertionError:
         # print error message if the invalid number of columns passed and exit the program
         print "Invalid number of columns passed for data frame creation"
-        print "Assertion error({0}): {1}".format(a.errno, a.strerror)
         sys.exit()
 
     except Exception as e:
         print "Error while creating pandas data frame from the parsed records"
-        print "I/O error({0}): {1}".format(e.errno, e.strerror)
+        print "Error Message : " + e.message
         sys.exit()
 
     else:
