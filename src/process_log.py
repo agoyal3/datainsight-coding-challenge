@@ -316,19 +316,19 @@ def get_top_n_busiest_periods(n=0, period_in_minutes=0, input_data_frame=None):
 
 def get_host_with_n_login_failures(n=0, input_data_frame=None):
 
-    """Fetches all hosts and rows from dataframe with failed login attempts
+    """Fetches all the host names with at least n (3 in this case) failed login attempts
 
     Filters the rows from the input data frame with failed login attempts i.e. with http status code
     as 401 and where number of such failed attempts for a particular host is greater or equal to n. The method
-    returns the list of such hosts and the dataframe with filtered rows.
+    returns the list of such hosts.
 
     Args:
         n: number of failure attempts by a host
         input_data_frame : the dataframe with the log data
 
     Returns:
-        list, dataframe : A list of hosts with number of attempts greater than or equals to n and dataframe with
-        all such failed attempt login rows.
+        list : A list of hosts with number of attempts greater than or equals to n i.e. consecutive failure attempts
+        limit
 
     """
 
@@ -344,88 +344,7 @@ def get_host_with_n_login_failures(n=0, input_data_frame=None):
     # get the list of all hosts with failed attempts greater or equal to n
     hosts = df_failed_login_attempts_count[df_failed_login_attempts_count >= n].index
 
-    # retain the failed attempt rows only for host names in hosts list.
-    df_failed_login_attempts = df_failed_login_attempts[df_failed_login_attempts['host_name'].isin(hosts)]
-
-    return hosts, df_failed_login_attempts
-
-
-def get_host_block_window_start(input_data_frame, consecutive_failures_limit,
-                                blocked_window_time, login_failure_window):
-
-    """Fetches the host name and block window start time
-
-    Retrieves the dataframe with host name and block window start time for all the hosts with consecutive login
-    failures within the login failure window. The block start time will be used to get all the entries which could have
-    been potentially blocked within the blocked time window.
-
-    Args:
-        blocked_window_time: blocked window time in minutes after consecutive login failures. E.g. 5 min attempts block
-        consecutive_failures_limit: threshold for number of consecutive login failures. E.g. 3 failures
-        login_failure_window: failure window time in seconds over which the consecutive failures occur. E.g. 20 seconds
-        input_data_frame: the data frame with the server log data
-
-    Returns:
-        A dataframe with host name and block window start timestamp.
-
-    """
-
-    hosts = list()
-    ban_start_timestamps = list()
-
-    # iterate through each host and check for block start window
-    for host in input_data_frame['host_name'].unique():
-
-        # to track if failed attempt is already within block window
-        prev_ban_start_window = None
-
-        # dataframe with failed attempts for a particular host
-        df_host_failed_timestamps = input_data_frame[input_data_frame['host_name'] == host]['timestamp']
-
-        i = 0
-
-        # iterate through all the failed attempts to check if there are consecutive failures and are in login failure
-        # window.
-        while i < len(df_host_failed_timestamps) - consecutive_failures_limit + 1:
-
-            # get the current failure timestamp
-            window_lower_bound = pd.to_datetime(df_host_failed_timestamps.iloc[i])
-
-            if prev_ban_start_window is not None:
-
-                # check if it falls in 5 minute time window
-                delta_time = pd.Timedelta(window_lower_bound - prev_ban_start_window).seconds
-
-                # if it is within blocked time window then ignore and move to next record.
-                if 0 < delta_time <= 60*blocked_window_time:
-                    i += 1
-                    continue
-                else:
-                    prev_ban_start_window = None
-
-            # get the failure timestamp of last consecutive failure limit
-            window_upper_bound = pd.to_datetime(df_host_failed_timestamps.iloc[i + consecutive_failures_limit - 1])
-
-            # get the time difference between the consecutive failures
-            failure_time_window = pd.Timedelta(window_upper_bound - window_lower_bound).seconds
-
-            # if time difference is within login failure window then add the host and last consecutive failure timestamp
-            # to respective lists else move to the next record
-            if 0 < failure_time_window < login_failure_window:
-
-                # add to the list
-                hosts.append(host)
-                ban_start_timestamps.append(window_upper_bound)
-
-                # set the the prev block start window as last consecutive failure timestamp
-                prev_ban_start_window = window_upper_bound
-
-                # move to the attempt immediately after the last consecutive failure timestamp
-                i += consecutive_failures_limit
-            else:
-                i += 1
-
-    return pd.DataFrame({'host_name': hosts, 'ban_start_timestamp': ban_start_timestamps})
+    return hosts
 
 
 def get_login_failure_blocked_records(blocked_window_time=0, consecutive_failure_limit=0,
@@ -461,39 +380,106 @@ def get_login_failure_blocked_records(blocked_window_time=0, consecutive_failure
 
     # Get the list of hosts with failed login attempts greater than the consecutive failure limit, not necessarily in
     # failure limit window. This is to slice the input data frame and also all failed login attempt rows in dataframe.
-    filtered_hosts, df_failed_login_records = get_host_with_n_login_failures(n=consecutive_failure_limit,
-                                                                             input_data_frame=input_data_frame)
+    filtered_hosts = get_host_with_n_login_failures(n=consecutive_failure_limit, input_data_frame=input_data_frame)
+
+    # create a smaller dataframe with rows containing the attempts from the filtered hosts
+    df_hosts_failed_attempts = input_data_frame[input_data_frame['host_name'].isin(filtered_hosts)]
 
     # sort the failed login attempts dataframe by hostname and timestamp
-    df_failed_login_records = df_failed_login_records.sort_values(['host_name', 'timestamp'], ascending=[True, True])
-
-    # get the dataframe with host name and block window start time for that hosts.
-    df_host_block_window_start = get_host_block_window_start(df_failed_login_records, consecutive_failure_limit,
-                                                             blocked_window_time, login_failure_window)
-
-    # slice the input data frame and get the hosts with login failures equal to or greater than allowed failures.
-    df_filtered_hosts = input_data_frame[input_data_frame['host_name'].isin(filtered_hosts)]
+    df_hosts_failed_attempts = df_hosts_failed_attempts.sort_values(['host_name', 'timestamp'], ascending=[True, True])
 
     blocked_records = list()
 
-    # iterate through the sliced input dataframe and get all the attempts with blocked window period from the block
-    # start time for each host with failure attempts equal or greater than threshold.
-    for host in df_host_block_window_start['host_name'].unique():
+    # iterate through each host attempts and look for consecutive failures and potential blocked attempts.
+    for host in df_hosts_failed_attempts['host_name'].unique():
 
-        # get records for one host
-        host_all_records = df_filtered_hosts[df_filtered_hosts['host_name'] == host]
+        # dataframe with records of particular host with failed attempts greater or equal to consecutive failures limit
+        df_host_records = df_hosts_failed_attempts[df_hosts_failed_attempts['host_name'] == host]
 
-        # fetch all the block start times for the host
-        ban_window_start = df_host_block_window_start[df_host_block_window_start['host_name']
-                                                      == host]['ban_start_timestamp']
+        # keeps track of last failed timestamp
+        last_fail_attempt_timestamp = None
 
-        # iterate through all the blocked start times for the host
-        for block_time in ban_window_start:
+        # keeps track of consecutive failed attempts so far
+        consecutive_failed_attempts_count = 0
 
-            # append the blocked records to the list which fall within blocked period window
-            blocked_records.extend([row.log_entry for index, row in host_all_records.iterrows()
-                                    if 0 < pd.Timedelta(row['timestamp'] - block_time).seconds <= 60 *
-                                    blocked_window_time])
+        # keeps track of failure window time gap of consecutive failed attempts
+        consecutive_failure_time_gap = 0
+
+        # Iterate through all attempts to check if there are consecutive failures and are in login failure window.
+        # If yes, then record all the attempts from last failure till the blocked period time window.
+        for i in range(len(df_host_records)):
+
+            # get the status code and timestamp of current row
+            http_status_code = df_host_records['http_status_code'].iloc[i]
+            curr_timestamp = pd.to_datetime(df_host_records['timestamp'].iloc[i])
+
+            # Check the http status code.
+            # If it is not 401 then reset the trackers and skip the loop
+            # If it 401 then increment the consecutive failed attempt and other trackers accordingly.
+            if http_status_code != '401':
+
+                # reset the trackers
+                consecutive_failed_attempts_count = 0
+                consecutive_failure_time_gap = 0
+                last_fail_attempt_timestamp = None
+                continue
+
+            else:
+                # increment the consecutive failed attempt
+                consecutive_failed_attempts_count += 1
+
+                # if this is the first failed attempt then set last failed timestamp to current timestamp
+                if last_fail_attempt_timestamp is None:
+                    last_fail_attempt_timestamp = curr_timestamp
+
+                # get the time difference between consecutive failed attempts and update the time gap tracker
+                consecutive_failure_time_gap += pd.Timedelta(curr_timestamp - last_fail_attempt_timestamp).seconds
+
+                # if gap is more than login failure window then set the values of trackers appropriately.
+                if consecutive_failure_time_gap > 20:
+
+                    # set the time gap to 0, as this would be first failure in new consecutive window check
+                    consecutive_failure_time_gap = 0
+
+                    # set the failed attempt to 1, the current row itself.
+                    consecutive_failed_attempts_count = 1
+
+                    # set the last failed timestamp to its own timestamp
+                    last_fail_attempt_timestamp = curr_timestamp
+                    continue
+
+            # Check for the consecutive failure attempts condition, if met then record all attempts until blocked window
+            # time
+            if consecutive_failed_attempts_count == consecutive_failure_limit \
+                    and consecutive_failure_time_gap <= login_failure_window:
+
+                # iterate until the time difference is less than blocked time window or all the records are iterated
+                while True:
+
+                    i += 1
+
+                    if i == len(df_host_records):
+                        break
+
+                    # get next timestamp and compute the time difference. if time difference is within blocked window
+                    # time i.e. 5 minutes in this case, then add attempt to the list else reset the counters and move
+                    # the iterator back to current row.
+                    next_timestamp = pd.to_datetime(df_host_records['timestamp'].iloc[i])
+
+                    if 0 < pd.Timedelta(next_timestamp - curr_timestamp).seconds <= 60 * blocked_window_time:
+
+                        # add to potential blocked attempts list
+                        blocked_records.append(df_host_records['log_entry'].iloc[i])
+                    else:
+
+                        # reset trackers
+                        last_fail_attempt_timestamp = None
+                        consecutive_failed_attempts_count = 0
+                        consecutive_failure_time_gap = 0
+
+                        # move the iterator back to current row.
+                        i -= 1
+                        break
 
     return blocked_records
 
