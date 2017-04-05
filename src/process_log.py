@@ -474,19 +474,22 @@ def get_login_failure_blocked_records(blocked_window_time=0, consecutive_failure
 
     # iterate through the sliced input dataframe and get all the attempts with blocked window period from the block
     # start time for each host with failure attempts equal or greater than threshold.
-    for host in df_host_block_window_start['host_name']:
+    for host in df_host_block_window_start['host_name'].unique():
 
         # get records for one host
         host_all_records = df_filtered_hosts[df_filtered_hosts['host_name'] == host]
 
-        # fetch the block start time for the host
+        # fetch all the block start times for the host
         ban_window_start = df_host_block_window_start[df_host_block_window_start['host_name']
-                                                      == host]['ban_start_timestamp'].iloc[0]
+                                                      == host]['ban_start_timestamp']
 
-        # append the blocked records to the list which fall within blocked period window
-        blocked_records.extend([row.log_entry for index, row in host_all_records.iterrows()
-                                if 0 < pd.Timedelta(row['timestamp'] - ban_window_start).seconds <= 60 *
-                                blocked_window_time])
+        # iterate through all the blocked start times for the host
+        for block_time in ban_window_start:
+
+            # append the blocked records to the list which fall within blocked period window
+            blocked_records.extend([row.log_entry for index, row in host_all_records.iterrows()
+                                    if 0 < pd.Timedelta(row['timestamp'] - block_time).seconds <= 60 *
+                                    blocked_window_time])
 
     return blocked_records
 
@@ -533,8 +536,10 @@ def write_to_file(output_file=None, input_data=None):
 def main():
 
     """
-
-
+    Main method calls the various methods to extract features from the NASA Web Server logs.
+    First, the log file is parsed and a pandas dataframe is created and preprocessed to
+    get the required columns. Methods to get individual features are called by passing
+    the pandas dataframe as one of the input parameters.
 
     """
 
@@ -544,6 +549,10 @@ def main():
     # write all the unprocessed records to bad records output file
     if bad_records is not None and len(bad_records) > 0:
         write_to_file(output_file=BAD_RECORDS_FILE, input_data=bad_records)
+
+    if len(parsed_records) == 0:
+        print "\nNo records present in the log file for analysis."
+        sys.exit()
 
     # get the pandas data frame from the parsed records for further analysis
     df_log_data = get_data_frame(input_records=parsed_records)
