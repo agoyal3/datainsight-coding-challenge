@@ -63,7 +63,7 @@ The log data is in ASCII format with one line per request. Below are two sample 
 `200` is for successful request.   
 `401` is for unauthorized access or login failure.
 			
-* **bytes** bytes transferred or consumed by that resource in the reply.   
+* **bytes** bytes transferred or consumed by a resource in the reply.   
 	e.g., 
 `1420`- bytes consumed for /login request.
 
@@ -223,6 +223,17 @@ Top 10 busiest hours `cat hours.txt`:
 
 ### Feature 4
 Detect patterns of three failed login attempts from the same IP address over 20 seconds so that all further attempts to the site can be blocked for 5 minutes. Log those possible security breaches.
+
+To implement this feature, first the filtered list of hosts with 3 or more than 3 login failure attempts is extracted. And then attempts for these individuals hosts are checked for 3 consecutive login failures within 20 second period, if found then attempts for next 5 minute window are recorded.
+
+#### Filter hosts
+First step is to filter the list of hosts with 3 or more than 3 login failure attempts is extracted. All the records from dataframe with `http_status_code == '401'` i.e. status code for failed login are filtered. Then value_count function is used to get the number of failed attempts for individual host_name. Only the hosts with count greater than or equal to 3 are retained and rest are filtered out. This step reduces the size of our data for analysis significantly and speeds up the analysis process.
+
+#### Fetch filtered hosts dataframe 
+The filtered host list is then used to fetch the rows from the original dataframe corresponding to these hosts using isin() function.
+
+#### Getting blocked attempts and writing the output
+For every host in the filtered hosts list, the rows corresponding to that host are fetched from the filtered hosts dataframe and sorted based on timestamp. A loop is executed to check for 3 consecutive login failure attempts within login failure time period i.e. 20 seconds. Few trackers like `consecutive_failed_attempts_counter`,`consecutive_failure_time_gap` and `last_failed_attempt_timestamp` are used to perform various conditional checks. If found, then another while loop is executed to record all the blocked attempts for next 5 mins in `blocked_records` list, else the trackers are reset. All the trackers are also reset after 5 min window. Once the list is obtained, then it is written to `blocked.txt`.
 
 Potential blocked attempts `head blocked.txt`:
 
