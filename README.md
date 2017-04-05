@@ -153,6 +153,7 @@ For e.g.,
 ### Feature 1
 List the top 10 most active host/IP addresses that have accessed the site.    
 
+#### Implementation
 To implement this feature, value count function avialable in pandas dataframe is used. The value_counts function groups the dataframe rows based on a key and sorts the rows based on the frequency count of each key in descending order. In our case, the key is host_name column values. Once the new frequency count dataframe is generated, iteration over top 10 rows is done to get a list of most active hosts along with frequency counts separated by comma. The list is then written into `hosts.txt` file. 
 
 
@@ -173,6 +174,7 @@ Top 10 active hosts `cat hosts.txt` :
 ### Feature 2
 Identify the 10 resources that consume the most bandwidth on the site
 
+#### Implementation
 To implement this feature, groupby in combination with sum function is used. The groupby function creates a grouped object based on a key i.e. `uri` column values and then sum function aggregates the values over a particular group key i.e. `bytes_transferred` column values. From this grouped object, a dataframe is created with resource and the bandwidth consumed by that resource and sorted in descending order based on bandwidth consumed. Using this dataframe, a list of top 10 resources is extracted and written to `resources.txt` file. 
 
 Top 10 resources `cat resources.txt` :
@@ -193,18 +195,19 @@ Top 10 resources `cat resources.txt` :
 ### Feature 3
 List the top 10 busiest (or most frequently visited) 60-minute periods
 
+#### Implementation
 To implement this feature, the rolling window function along with sum and shift is used. The rollling window function allows to aggregate the values over the given time window for every row. However, the rolling function is left aligned i.e. it sums the values ending at a timestamp but sum of requests starting from timestamp till the window period are required. In order to achieve this, shift function is used to shift the rows by the length of window period. The sum function aggregates all the frequency counts in the window period.
 
-#### Visits per timestamp
+##### Visits per timestamp
 Like feature 1, value counts function is used to get number of visits for each timestamp and added as a new column in the frequency count dataframe. While calling rolling sum function, values in number of visits column are aggregated. 
 
-#### Reindexing
+##### Reindexing
 Since the windows could start from any timestamp, not necessarily when the event has occurred, reindexing is done based on timestamp to fill in missing timestamp gaps. The minimum and maximum timestamp value is extracted from the frequency dataframe and a new index range is created using `date_range` function. Then `reindex` function is used and new index range values are used. For timestamps with no events, the frequency count is filled as 0.
 
-#### Rolling sum
+##### Rolling sum
 As described above, the rolling sum along with shift is taken over the reindexed dataframe and aggregated values are added in new column `window_period_visits`. Due to shift function, the last n records, where n is shift window period will be set as NaN. In order to update the NaN, another loop is executed for last n records and values are summed over `num_vists` column starting from the record till the end of dataframe.
 
-#### Formatting and writing the output
+##### Formatting and writing the output
 The dataframe is then sorted based on `window_period_visits` in descending order. The timestamp is converted back to original time format and timezone is appended to it. Finally, a list with complete timestamp along with `window_period_visits` is appended to list and then written to `hours.txt` file.
 
 Top 10 busiest hours `cat hours.txt`:
@@ -224,15 +227,16 @@ Top 10 busiest hours `cat hours.txt`:
 ### Feature 4
 Detect patterns of three failed login attempts from the same IP address over 20 seconds so that all further attempts to the site can be blocked for 5 minutes. Log those possible security breaches.
 
+#### Implementation
 To implement this feature, first the filtered list of hosts with 3 or more than 3 login failure attempts is extracted. And then attempts for these individuals hosts are checked for 3 consecutive login failures within 20 second period, if found then attempts for next 5 minute window are recorded.
 
-#### Filter hosts
+##### Filter hosts
 First step is to filter the list of hosts with 3 or more than 3 login failure attempts is extracted. All the records from dataframe with `http_status_code == '401'` i.e. status code for failed login are filtered. Then value_count function is used to get the number of failed attempts for individual host_name. Only the hosts with count greater than or equal to 3 are retained and rest are filtered out. This step reduces the size of our data for analysis significantly and speeds up the analysis process.
 
-#### Fetch filtered hosts dataframe 
+##### Fetch filtered hosts dataframe 
 The filtered host list is then used to fetch the rows from the original dataframe corresponding to these hosts using isin() function.
 
-#### Getting blocked attempts and writing the output
+##### Getting blocked attempts and writing the output
 For every host in the filtered hosts list, the rows corresponding to that host are fetched from the filtered hosts dataframe and sorted based on timestamp. A loop is executed to check for 3 consecutive login failure attempts within login failure time period i.e. 20 seconds. Few trackers like `consecutive_failed_attempts_counter`,`consecutive_failure_time_gap` and `last_failed_attempt_timestamp` are used to perform various conditional checks. If found, then another while loop is executed to record all the blocked attempts for next 5 mins in `blocked_records` list, else the trackers are reset. All the trackers are also reset after 5 min window. Once the list is obtained, then it is written to `blocked.txt`.
 
 Potential blocked attempts `head blocked.txt`:
