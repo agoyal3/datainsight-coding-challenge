@@ -9,7 +9,7 @@
 	2. [Feature 2](README.md#feature-2)
 	3. [Feature 3](README.md#feature-3)  
 	4. [Feature 4](README.md#feature-4)  
-5. [Execution](README.md#execution)
+5. [Run the program](README.md#execution)
 
 
 ## Introduction
@@ -28,6 +28,7 @@ could be found [here](challenge-description.md). The overview of the challenge i
 	Install using pip command:
 
 		pip install pandas
+	 
 	 
 ## Dataset
 NASA web server logs data can be downloaded from [here](https://drive.google.com/file/d/0B7-XWjN4ezogbUh6bUl1cV82Tnc/view).
@@ -66,6 +67,7 @@ The log data is in ASCII format with one line per request. Below are two sample 
 	e.g., 
 `1420`- bytes consumed for /login request.
 
+   
 
 ## Data Loading
 
@@ -89,13 +91,15 @@ The log data used for analysis consists of `4400644` lines. The regular expressi
 `Total records : 4400644 | Valid records  : 4400644 | Invalid records : 0`  
 
 ### Loading into pandas dataframe
-The valid records list is then loaded into pandas dataframe for feature extraction. pandas dataframe provide very useful inbuilt functions and tools for data analysis.
+The valid records list generated after parsing the log file is then loaded into pandas dataframe. pandas dataframe provide very useful and powerful inbuilt functions and tools for data analysis.
 
 The column headers are specified for all the columns to allow us to query later using the column name. Once the data is loaded into dataframe, we need to some preprocessing and data cleaning.
 
 - Update the '-' values in `bytes_transferred` columns to 0 and update the column datatype to float64.
 - Convert the extracted timestamp format to pandas datetime format `%d/%b/%Y:%H:%M:%S`     
-- Generate `http_method` and `uri` columns from the `http_request` column by splitting the `http_request` column values by space. Some of the http requests have http request method and HTTP version missing, so only URI column is updated and others are left blank. e.g.;   `'klothos.crl.research.digital.com - - [10/Jul/1995:16:45:50 -0400] "\x05\x01" 400 -'`   
+- Generate `http_method` and `uri` columns from the `http_request` column by splitting the `http_request` column values by space. Some of the http requests have http request method and HTTP version missing, so only URI column is updated and others are left blank.   
+	e.g.;   `'klothos.crl.research.digital.com - - [10/Jul/1995:16:45:50 -0400] "\x05\x01" 400 -'`   
+- Added a log_entry column containing the complete log line read from the server log file.   
 
 Dataframe datatypes:
 
@@ -126,6 +130,192 @@ Dataframe Values:
 	uri                                                   /history/apollo/
 
 
+
+This dataframe will be used throughout the code for various features implementation.   
+
+
+## Features Implementation
+For feature implementation, below variables have been used to define the various method parameters. These allow us to extend the code to extract and analyze different types of similar features by tuning parameters and making updates only at one place.  
+
+	NUM_OF_ACTIVE_HOSTS = 10
+	NUM_OF_TOP_RESOURCES = 10
+	NUM_OF_BUSIEST_PERIODS = 10
+	BUSY_PERIOD_WINDOW = 60
+	BLOCK_WINDOW_MIN = 5
+	LOGIN_FAILURES_LIMIT = 3
+	LOGIN_FAILURES_WINDOW_SEC = 20
+	
+For e.g.,    
+`NUM_OF_ACTIVE_HOSTS` - defines number of top active hosts required for feature 1.    
+`LOGIN_FAILURES_LIMIT` - defines the consecutive login failures limit.    
+`BLOCK_WINDOW_TIME` - defines the time for which the potential attempts to be blocked.     
+
+### Feature 1
+List the top 10 most active host/IP addresses that have accessed the site.    
+
+To implement this feature, value count function avialable in pandas dataframe is used. The value_counts function groups the dataframe rows based on a key and sorts the rows based on the frequency count of each key in descending order. In our case, the key is host_name column values. Once the new frequency count dataframe is generated, iteration over top 10 rows is done to get a list of most active hosts along with frequency counts separated by comma. The list is then written into `hosts.txt` file. 
+
+
+Top 10 active hosts `cat hosts.txt` :      
+
+	piweba3y.prodigy.com,22309  
+	piweba4y.prodigy.com,14903
+	piweba1y.prodigy.com,12876
+	siltb10.orl.mmc.com,10578
+	alyssa.prodigy.com,10184
+	edams.ksc.nasa.gov,9095
+	piweba2y.prodigy.com,7961
+	163.206.89.4,6520
+	www-d3.proxy.aol.com,6299
+	vagrant.vf.mmc.com,6096
+
+
+### Feature 2
+Identify the 10 resources that consume the most bandwidth on the site
+
+
+Top 10 resources `cat resources.txt` :
+
+	/shuttle/missions/sts-71/movies/sts-71-launch.mpg
+	/
+	/shuttle/missions/sts-71/movies/sts-71-tcdt-crew-walkout.mpg
+	/shuttle/missions/sts-53/movies/sts-53-launch.mpg
+	/shuttle/countdown/count70.gif
+	/shuttle/missions/sts-71/movies/sts-71-hatch-hand-group.mpg
+	/shuttle/technology/sts-newsref/stsref-toc.html
+	/shuttle/countdown/video/livevideo2.gif
+	/shuttle/countdown/count.gif
+	/shuttle/countdown/video/livevideo.gif
+
+
+
+### Feature 3
+List the top 10 busiest (or most frequently visited) 60-minute periods
+
+
+Top 10 busiest hours `cat hours.txt`:
+	
+	13/Jul/1995:08:59:33 -0400,35027
+	13/Jul/1995:08:59:39 -0400,35019
+	13/Jul/1995:08:59:40 -0400,35019
+	13/Jul/1995:08:59:35 -0400,35015
+	13/Jul/1995:08:59:34 -0400,35014
+	13/Jul/1995:08:59:41 -0400,35013
+	13/Jul/1995:08:59:32 -0400,35012
+	13/Jul/1995:08:59:42 -0400,35011
+	13/Jul/1995:08:59:36 -0400,35008
+	13/Jul/1995:08:59:38 -0400,35007
+
+
+### Feature 4
+Detect patterns of three failed login attempts from the same IP address over 20 seconds so that all further attempts to the site can be blocked for 5 minutes. Log those possible security breaches.
+
+Potential blocked attempts `head blocked.txt`:
+
+	207.125.54.37 - - [01/Jul/1995:20:50:15 -0400] "POST /login HTTP/1.0" 401 1420
+	207.125.54.37 - - [01/Jul/1995:20:50:16 -0400] "GET / HTTP/1.0" 200 7074
+	207.125.54.37 - - [01/Jul/1995:20:50:17 -0400] "GET /shuttle/missions/51-l/51-l-patch-small.gif HTTP/1.0" 200 10495
+	207.133.42.32 - - [07/Jul/1995:05:46:28 -0400] "POST /login HTTP/1.0" 401 1420
+	207.133.42.32 - - [07/Jul/1995:05:46:29 -0400] "GET / HTTP/1.0" 200 7074
+	207.133.42.32 - - [07/Jul/1995:05:46:30 -0400] "GET /images/ksclogo-medium.gif HTTP/1.0" 200 5866
+	207.140.62.73 - - [02/Jul/1995:17:13:20 -0400] "POST /login HTTP/1.0" 401 1420
+	207.140.62.73 - - [02/Jul/1995:17:13:21 -0400] "GET / HTTP/1.0" 200 7074
+	207.140.62.73 - - [02/Jul/1995:17:13:22 -0400] "GET /shuttle/missions/sts-71/images/KSC-95EC-0423.gif HTTP/1.0" 200 64939
+	207.147.82.83 - - [16/Jul/1995:08:30:49 -0400] "POST /login HTTP/1.0" 401 1420
+	...
+
+
+Total potential blocked attempts found `wc -l blocked.txt` : `1758`
+
+
+## Run the program
+
+The repository directory structure :
+
+    ├── README.md 
+    ├── run.sh
+    ├── src
+    │   └── process_log.py
+    ├── log_input
+    │   └── log.txt
+    ├── log_output
+    |   └── hosts.txt
+    |   └── hours.txt
+    |   └── resources.txt
+    |   └── blocked.txt
+    ├── insight_testsuite
+        └── run_tests.sh
+        └── tests
+            └── test_features
+                ├── log_input
+                │   └── log.txt
+                ├── log_output
+                    └── hosts.txt
+                    └── hours.txt
+                    └── resources.txt
+                    └── blocked.txt
+
+Use below command to run the program:    
+
+`~$ ./run.sh`
+
+or 
+
+`~$ python ./src/process_log.py ./log_input/log.txt ./log_output/hosts.txt ./log_output/hours.txt ./log_output/resources.txt ./log_output/blocked.txt ./log_output/bad_records.txt`   
+
+The process_log.py takes below command line arguments:    
+
+	arg 0 (./src/process_log.py) : python source code file
+	arg 1 (./log_input/log.txt) : input NASA web server log file
+	arg 2 (./log_output/hosts.txt) : file to write the feature 1 i.e. top 10 active hosts
+	arg 3 (./log_output/hours.txt) : file to write the feature 3 i.e. top busiest hours
+	arg 4 (./log_output/resources.txt) : file to write the feature 2 i.e. top 10 resources based on bandwidth consumded
+	arg 5 (./log_output/blocked.txt) : file to write the feature 4 i.e. blocked attempts
+	arg 6 (./log_output/bad_records.txt) : file to write the records which were not parsed by the regular expression
+
+Successful scenario output:
+	
+	Parsing the log file...
+	Log file parsing completed!!
+	Total records : 4400644 | Valid records  : 4400644 | Invalid records : 0
+
+	Writing output to /mnt/Ankit/workspaces/pycharm/fansite-analytics-challenge/log_output/hosts.txt
+	Output written successfully!!
+
+	Writing output to /mnt/Ankit/workspaces/pycharm/fansite-analytics-challenge/log_output/resources.txt
+	Output written successfully!!
+
+	Writing output to /mnt/Ankit/workspaces/pycharm/fansite-analytics-challenge/log_output/hours.txt
+	Output written successfully!!
+
+	Writing output to /mnt/Ankit/workspaces/pycharm/fansite-analytics-challenge/log_output/blocked.txt
+	Output written successfully!!
+
+	--- 98.736390114 seconds ---
+
+Few Failure scenarios:
+
+	Missing command line arguments output:
+
+		Missing command line arguments. 7 arguments expected and 1 provided.
+		Example Usage : 
+		 python ./src/process_log.py ./log_input/log.txt ./log_output/hosts.txt ./log_output/hours.txt ./log_output/resources.txt ./log_output/blocked.txt ./log_output/bad_records.txt
+
+
+
+	Empty log file output:
+
+		Parsing the log file...
+		Log file parsing completed!!
+		Total records : 0 | Valid records  : 0 | Invalid records : 0
+
+		No records present in the log file for analysis.
+
+
+
+
+	
+	
 
 
 
