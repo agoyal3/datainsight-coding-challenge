@@ -407,9 +407,11 @@ def get_login_failure_blocked_records(blocked_window_time=0, consecutive_failure
         # keeps track of failure window time gap of consecutive failed attempts
         consecutive_failure_time_gap = 0
 
+        i = 0
+
         # Iterate through all attempts to check if there are consecutive failures and are in login failure window.
         # If yes, then record all the attempts from last failure till the blocked period time window.
-        for i in range(len(df_host_records)):
+        while i < len(df_host_records):
 
             # get the status code and timestamp of current row
             http_status_code = df_host_records['http_status_code'].iloc[i]
@@ -424,6 +426,8 @@ def get_login_failure_blocked_records(blocked_window_time=0, consecutive_failure
                 consecutive_failed_attempts_count = 0
                 consecutive_failure_time_gap = 0
                 last_fail_attempt_timestamp = None
+
+                i += 1
                 continue
 
             else:
@@ -448,7 +452,12 @@ def get_login_failure_blocked_records(blocked_window_time=0, consecutive_failure
 
                     # set the last failed timestamp to its own timestamp
                     last_fail_attempt_timestamp = curr_timestamp
+
+                    i += 1
                     continue
+
+                else:
+                    last_fail_attempt_timestamp = curr_timestamp
 
             # Check for the consecutive failure attempts condition, if met then record all attempts until blocked window
             # time
@@ -479,9 +488,11 @@ def get_login_failure_blocked_records(blocked_window_time=0, consecutive_failure
                         consecutive_failed_attempts_count = 0
                         consecutive_failure_time_gap = 0
 
-                        # move the iterator back to current row.
+                        # move the iterator to the previous row
                         i -= 1
                         break
+
+            i += 1
 
     return blocked_records
 
