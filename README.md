@@ -9,7 +9,7 @@
 	2. [Feature 2](README.md#feature-2)
 	3. [Feature 3](README.md#feature-3)  
 	4. [Feature 4](README.md#feature-4)  
-5. [Run the program](README.md#execution)
+5. [Run the program](README.md#run-the-program)
 
 
 ## Introduction
@@ -173,6 +173,7 @@ Top 10 active hosts `cat hosts.txt` :
 ### Feature 2
 Identify the 10 resources that consume the most bandwidth on the site
 
+To implement this feature, groupby in combination with sum function is used. The groupby function creates a grouped object based on a key i.e. `uri` column values and then sum function aggregates the values over a particular group key i.e. `bytes_transferred` column values. From this grouped object, a dataframe is created with resource and the bandwidth consumed by that resource and sorted in descending order based on bandwidth consumed. Using this dataframe, a list of top 10 resources is extracted and written to `resources.txt` file. 
 
 Top 10 resources `cat resources.txt` :
 
@@ -192,6 +193,19 @@ Top 10 resources `cat resources.txt` :
 ### Feature 3
 List the top 10 busiest (or most frequently visited) 60-minute periods
 
+To implement this feature, the rolling window function along with sum and shift is used. The rollling window function allows to aggregate the values over the given time window for every row. However, the rolling function is left aligned i.e. it sums the values ending at a timestamp but sum of requests starting from timestamp till the window period are required. In order to achieve this, shift function is used to shift the rows by the length of window period. The sum function aggregates all the frequency counts in the window period.
+
+#### Visits per timestamp
+Like feature 1, value counts function is used to get number of visits for each timestamp and added as a new column in the frequency count dataframe. While calling rolling sum function, values in number of visits column are aggregated. 
+
+#### Reindexing
+Since the windows could start from any timestamp, not necessarily when the event has occurred, reindexing is done based on timestamp to fill in missing timestamp gaps. The minimum and maximum timestamp value is extracted from the frequency dataframe and a new index range is created using `date_range` function. Then `reindex` function is used and new index range values are used. For timestamps with no events, the frequency count is filled as 0.
+
+#### Rolling sum
+As described above, the rolling sum along with shift is taken over the reindexed dataframe and aggregated values are added in new column `window_period_visits`. Due to shift function, the last n records, where n is shift window period will be set as NaN. In order to update the NaN, another loop is executed for last n records and values are summed over `num_vists` column starting from the record till the end of dataframe.
+
+#### Formatting and writing the output
+The dataframe is then sorted based on `window_period_visits` in descending order. The timestamp is converted back to original time format and timezone is appended to it. Finally, a list with complete timestamp along with `window_period_visits` is appended to list and then written to `hours.txt` file.
 
 Top 10 busiest hours `cat hours.txt`:
 	
