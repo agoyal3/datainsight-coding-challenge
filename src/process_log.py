@@ -349,6 +349,46 @@ def get_host_with_n_login_failures(n=0, input_data_frame=None):
     return hosts
 
 
+def check_consecutive_login_failures(input_data_frame=None, consecutive_failure_limit=0, login_failure_window=0):
+
+    """Checks for consecutive login failure attempts
+
+    Takes a sliced dataframe of size equal to consecutive_failure_limit and checks if the rows in dataframe meets all
+    the consecutive login failure attempts condition. If yes, then returns True else False
+
+    Args:
+        consecutive_failure_limit: threshold for number of consecutive login failures. E.g. 3 failures
+        login_failure_window: failure window time in seconds over which the consecutive failures occur. E.g. 20 seconds
+        input_data_frame: the sliced data frame with number of rows = consecutive_failure_limit i.e. 3
+
+    Returns:
+        True, if all the consecutive login failure conditions are met else False.
+
+    """
+
+    # check if length of input dataframe is not equal to consecutive_failure_limit
+    if len(input_data_frame) != consecutive_failure_limit:
+        return False
+
+    # check if any of the record is not with http status code 401
+    df_failed_attempts = input_data_frame[input_data_frame['http_status_code'] == '401']
+
+    if len(df_failed_attempts) < consecutive_failure_limit:
+        return False
+
+    # get the time window for 3 failure attempts and check if within login_failure_window.
+    # If yes, continue else return false
+    lower_bound = df_failed_attempts['timestamp'].iloc[0]
+    upper_bound = df_failed_attempts['timestamp'].iloc[consecutive_failure_limit-1]
+
+    window_gap = pd.Timedelta(upper_bound - lower_bound).seconds
+
+    if window_gap < 0 or window_gap >= login_failure_window:
+        return False
+
+    return True
+
+
 def get_login_failure_blocked_records(blocked_window_time=0, consecutive_failure_limit=0,
                                       login_failure_window=0, input_data_frame=None):
 
@@ -398,71 +438,27 @@ def get_login_failure_blocked_records(blocked_window_time=0, consecutive_failure
         # dataframe with records of particular host with failed attempts greater or equal to consecutive failures limit
         df_host_records = df_hosts_failed_attempts[df_hosts_failed_attempts['host_name'] == host]
 
-        # keeps track of last failed timestamp
-        last_fail_attempt_timestamp = None
-
-        # keeps track of consecutive failed attempts so far
-        consecutive_failed_attempts_count = 0
-
-        # keeps track of failure window time gap of consecutive failed attempts
-        consecutive_failure_time_gap = 0
-
         i = 0
 
         # Iterate through all attempts to check if there are consecutive failures and are in login failure window.
         # If yes, then record all the attempts from last failure till the blocked period time window.
-        while i < len(df_host_records):
+        while i < len(df_host_records) - consecutive_failure_limit + 1:
 
-            # get the status code and timestamp of current row
-            http_status_code = df_host_records['http_status_code'].iloc[i]
-            curr_timestamp = pd.to_datetime(df_host_records['timestamp'].iloc[i])
+            # slice the dataframe in groups of size equal to consecutive_failure_limit
+            df_sliced_records = df_host_records[i:i+consecutive_failure_limit]
 
-            # Check the http status code.
-            # If it is not 401 then reset the trackers and skip the loop
-            # If it 401 then increment the consecutive failed attempt and other trackers accordingly.
-            if http_status_code != '401':
+            # check if all consecutive login failure conditions are met
+            consecutive_failure_check = check_consecutive_login_failures(df_sliced_records, consecutive_failure_limit,
+                                                                         login_failure_window)
 
-                # reset the trackers
-                consecutive_failed_attempts_count = 0
-                consecutive_failure_time_gap = 0
-                last_fail_attempt_timestamp = None
+            # if all conditions met, then block attempts for next 5 minutes.
+            if consecutive_failure_check:
 
-                i += 1
-                continue
+                # increment i to last failed consecutive attempt
+                i = i + consecutive_failure_limit - 1
 
-            else:
-                # increment the consecutive failed attempt
-                consecutive_failed_attempts_count += 1
-
-                # if this is the first failed attempt then set last failed timestamp to current timestamp
-                if last_fail_attempt_timestamp is None:
-                    last_fail_attempt_timestamp = curr_timestamp
-
-                # get the time difference between consecutive failed attempts and update the time gap tracker
-                consecutive_failure_time_gap += pd.Timedelta(curr_timestamp - last_fail_attempt_timestamp).seconds
-
-                # if gap is more than login failure window then set the values of trackers appropriately.
-                if consecutive_failure_time_gap > 20:
-
-                    # set the time gap to 0, as this would be first failure in new consecutive window check
-                    consecutive_failure_time_gap = 0
-
-                    # set the failed attempt to 1, the current row itself.
-                    consecutive_failed_attempts_count = 1
-
-                    # set the last failed timestamp to its own timestamp
-                    last_fail_attempt_timestamp = curr_timestamp
-
-                    i += 1
-                    continue
-
-                else:
-                    last_fail_attempt_timestamp = curr_timestamp
-
-            # Check for the consecutive failure attempts condition, if met then record all attempts until blocked window
-            # time
-            if consecutive_failed_attempts_count == consecutive_failure_limit \
-                    and consecutive_failure_time_gap <= login_failure_window:
+                # get the last failed consecutive attempt timestamp
+                block_start_time = df_host_records['timestamp'].iloc[i]
 
                 # iterate until the time difference is less than blocked time window or all the records are iterated
                 while True:
@@ -477,18 +473,11 @@ def get_login_failure_blocked_records(blocked_window_time=0, consecutive_failure
                     # the iterator back to current row.
                     next_timestamp = pd.to_datetime(df_host_records['timestamp'].iloc[i])
 
-                    if 0 < pd.Timedelta(next_timestamp - curr_timestamp).seconds <= 60 * blocked_window_time:
-
+                    if 0 < pd.Timedelta(next_timestamp - block_start_time).seconds <= 60 * blocked_window_time:
                         # add to potential blocked attempts list
                         blocked_records.append(df_host_records['log_entry'].iloc[i])
                     else:
-
-                        # reset trackers
-                        last_fail_attempt_timestamp = None
-                        consecutive_failed_attempts_count = 0
-                        consecutive_failure_time_gap = 0
-
-                        # move the iterator to the previous row
+                        # if exceeded the 5 minute window then revert the iterator to previous row
                         i -= 1
                         break
 
