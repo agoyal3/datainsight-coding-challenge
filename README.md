@@ -375,15 +375,23 @@ The repository directory structure :
         └── run_tests.sh
         └── tests
             └── test_features
+            |   ├── log_input
+            |   │   └── log.txt
+            |   |__ log_output
+            |   │   └── hosts.txt
+            |   │   └── hours.txt
+            |   │   └── resources.txt
+            |   │   └── blocked.txt
+            ├── custom-tests
                 ├── log_input
                 │   └── log.txt
-                ├── log_output
+                |__ log_output
                     └── hosts.txt
                     └── hours.txt
                     └── resources.txt
                     └── blocked.txt
-
-Use below command to run the program:    
+		    
+Use below command from the main directory to run the program:    
 
 `~$ ./run.sh`
 
@@ -439,6 +447,63 @@ Few Failure scenarios:
 
 		No records present in the log file for analysis.
 
+### Testing the directory structure and output format
+
+To test the correct directory structure and the format of the output files, run the test script, called `run_tests.sh` in the `insight_testsuite` folder.
+
+The tests are stored as text files under the `insight_testsuite/tests` folder. All the tests (insight tests and custom tests) are in separate folders and within have a `log_input` folder for `log.txt` and a `log_output` folder for outputs corresponding to the current test.
+
+Run the tests with the following from the `insight_testsuite` folder:
+
+    insight_testsuite~$ ./run_tests.sh 
+
+On success:
+
+	Parsing the log file...
+	Log file parsing completed!!
+	Total records : 23 | Valid records  : 23 | Invalid records : 0
+
+	Writing output to temp/log_output/hosts.txt
+	Output written successfully!!
+
+	Writing output to temp/log_output/resources.txt
+	Output written successfully!!
+
+	Writing output to temp/log_output/hours.txt
+	Output written successfully!!
+
+	Writing output to temp/log_output/blocked.txt
+	Output written successfully!!
+
+	--- 0.132741928101 seconds ---
+	[PASS]: custom_tests (hosts.txt)
+	[PASS]: custom_tests (resources.txt)
+	[PASS]: custom_tests (hours.txt)
+	[PASS]: custom_tests (blocked.txt)
+	[Wed Apr  5 20:12:55 EDT 2017] 4 of 8 tests passed
+
+	Parsing the log file...
+	Log file parsing completed!!
+	Total records : 10 | Valid records  : 10 | Invalid records : 0
+
+	Writing output to temp/log_output/hosts.txt
+	Output written successfully!!
+
+	Writing output to temp/log_output/resources.txt
+	Output written successfully!!
+
+	Writing output to temp/log_output/hours.txt
+	Output written successfully!!
+
+	Writing output to temp/log_output/blocked.txt
+	Output written successfully!!
+
+	--- 0.0247581005096 seconds ---
+	[PASS]: test_features (hosts.txt)
+	[PASS]: test_features (resources.txt)
+	[PASS]: test_features (hours.txt)
+	[PASS]: test_features (blocked.txt)
+	[Wed Apr  5 20:12:58 EDT 2017] 8 of 8 tests passed
 
 
 ## References
