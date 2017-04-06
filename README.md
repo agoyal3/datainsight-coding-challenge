@@ -262,7 +262,7 @@ Total potential blocked attempts found `wc -l blocked.txt` : `1758`
 
 #### Custom test_case for Feature 4
 
-Let's assume the input log file to have below entries:
+The below records are from the `log.txt` file present under `custom_tests`.
 
 	199.72.81.55 - - [01/Jul/1995:00:00:01 -0400] "POST /login HTTP/1.0" 401 1420
 	199.72.81.55 - - [01/Jul/1995:00:00:09 -0400] "POST /login HTTP/1.0" 401 1420
@@ -303,7 +303,7 @@ Expected output for above case:
 	199.72.81.55 - - [01/Jul/1995:00:06:30 -0400] "POST /login HTTP/1.0" 401 1420
 	199.72.81.55 - - [01/Jul/1995:00:07:17 -0400] "POST /login HTTP/1.0" 401 1420
 
-The above test case tests various scenarios described in the [feature4.png](https://github.com/agoyal3/datainsight-coding-challenge/tree/master/images/feature4.png). 
+The above input log file tests various scenarios described in the [feature4.png](https://github.com/agoyal3/datainsight-coding-challenge/tree/master/images/feature4.png). 
 
 ##### Scenario 1
 A successful login after two failed attempts resets the failure window.
