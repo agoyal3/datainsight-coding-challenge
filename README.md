@@ -41,7 +41,7 @@ The log data is in ASCII format with one line per request. Below are two sample 
     uplherc.upl.com - - [01/Aug/1995:00:00:07 -0400] "GET / HTTP/1.0" 304 0
 
 - **host** making the request  
-`208.271.69.50` and `uplherc.upl.com` are the hosts making the request. A hostname when possible, otherwise the Internet address if the name could not be looked up.
+`208.271.69.50` and `uplherc.upl.com` are the hosts/IP address making the request. 
 
 - **timestamp** is enclosed in the square brackets. Format : `[DD/MON/YYYY:HH:MM:SS -0400]`      
 `DD` - Day of the month  
@@ -157,7 +157,7 @@ For e.g.,
 List the top 10 most active host/IP addresses that have accessed the site.    
 
 #### Implementation
-To implement this feature, value count function avialable in pandas dataframe is used. The value_counts function groups the dataframe rows based on a key and sorts the rows based on the frequency count of each key in descending order. In our case, the key is host_name column values. Once the new frequency count dataframe is generated, iteration over top 10 rows is done to get a list of most active hosts along with frequency counts separated by comma. The list is then written into `hosts.txt` file. 
+To implement this feature, value_counts() function avialable in pandas dataframe is used. The value_counts() function groups the dataframe rows based on a key and sorts the rows based on the frequency count of each key in descending order. In our case, the key is host_name column values. Once the new frequency count dataframe is generated, iteration over top 10 rows is done to get a list of most active hosts along with frequency counts separated by comma. The list is then written into `hosts.txt` file. 
 
 
 Top 10 active hosts `cat hosts.txt` :      
@@ -178,7 +178,7 @@ Top 10 active hosts `cat hosts.txt` :
 Identify the 10 resources that consume the most bandwidth on the site
 
 #### Implementation
-To implement this feature, groupby in combination with sum function is used. The groupby function creates a grouped object based on a key i.e. `uri` column values and then sum function aggregates the values over a particular group key i.e. `bytes_transferred` column values. From this grouped object, a dataframe is created with resource and the bandwidth consumed by that resource and sorted in descending order based on bandwidth consumed. Using this dataframe, a list of top 10 resources is extracted and written to `resources.txt` file. 
+To implement this feature, groupby() in combination with sum() function is used. The groupby() function creates a grouped object based on a key i.e. `uri` column values and then sum() function aggregates the values over a particular group key i.e. `bytes_transferred` column values. From this grouped object, a dataframe is created with resource and the bandwidth consumed by that resource and sorted in descending order based on bandwidth consumed. Using this dataframe, a list of top 10 resources is extracted and written to `resources.txt` file. 
 
 Top 10 resources `cat resources.txt` :
 
@@ -199,10 +199,10 @@ Top 10 resources `cat resources.txt` :
 List the top 10 busiest (or most frequently visited) 60-minute periods
 
 #### Implementation
-To implement this feature, the rolling window function along with sum and shift is used. The rollling window function allows to aggregate the values over the given time window for every row. However, the rolling function is left aligned i.e. it sums the values ending at a timestamp but sum of requests starting from timestamp till the window period are required. In order to achieve this, shift function is used to shift the rows by the length of window period. The sum function aggregates all the frequency counts in the window period.
+To implement this feature, the rolling() window function along with sum() and shift() is used. The rollling window function allows to aggregate the values over the given time window for every row. However, the rolling function is left aligned i.e. it sums the values ending at a timestamp but sum of requests starting from timestamp till the window period are required. In order to achieve this, shift function is used to shift the rows by the length of window period. The sum function aggregates all the frequency counts in the window period.
 
 ##### Visits per timestamp
-Like feature 1, value counts function is used to get number of visits for each timestamp and added as a new column in the frequency count dataframe. While calling rolling sum function, values in number of visits column are aggregated. 
+Like feature 1, value_counts() function is used to get number of visits for each timestamp and added as a new column in the frequency count dataframe. While calling rolling sum function, values in number of visits column are aggregated. 
 
 ##### Reindexing
 Since the windows could start from any timestamp, not necessarily when the event has occurred, reindexing is done based on timestamp to fill in missing timestamp gaps. The minimum and maximum timestamp value is extracted from the frequency dataframe and a new index range is created using `date_range` function. Then `reindex` function is used and new index range values are used. For timestamps with no events, the frequency count is filled as 0.
@@ -335,7 +335,7 @@ Block attempts for next 5 mins until `01/Jul/1995:00:05:46 -0400`:
 	199.72.81.55 - - [01/Jul/1995:00:01:00 -0400] "POST /login HTTP/1.0" 401 1420
 	199.72.81.55 - - [01/Jul/1995:00:01:47 -0400] "POST /login HTTP/1.0" 200 1420
 
-The failure window resets from `01/Jul/1995:00:05:47 -0400` onwards so following entries not logged.
+The failure window resets from `01/Jul/1995:00:05:47 -0400` onwards so entries immediately following this timestamp are not logged.
 
 ##### Scenario 4
 Again 3 consecutive failures after 5 minutes block attempts window.
@@ -463,16 +463,16 @@ On success:
 	Log file parsing completed!!
 	Total records : 23 | Valid records  : 23 | Invalid records : 0
 
-	Writing output to temp/log_output/hosts.txt
+	Writing output to ../temp/log_output/hosts.txt
 	Output written successfully!!
 
-	Writing output to temp/log_output/resources.txt
+	Writing output to ../temp/log_output/resources.txt
 	Output written successfully!!
 
-	Writing output to temp/log_output/hours.txt
+	Writing output to ../temp/log_output/hours.txt
 	Output written successfully!!
 
-	Writing output to temp/log_output/blocked.txt
+	Writing output to ../temp/log_output/blocked.txt
 	Output written successfully!!
 
 	--- 0.132741928101 seconds ---
@@ -486,16 +486,16 @@ On success:
 	Log file parsing completed!!
 	Total records : 10 | Valid records  : 10 | Invalid records : 0
 
-	Writing output to temp/log_output/hosts.txt
+	Writing output to ../temp/log_output/hosts.txt
 	Output written successfully!!
 
-	Writing output to temp/log_output/resources.txt
+	Writing output to ../temp/log_output/resources.txt
 	Output written successfully!!
 
-	Writing output to temp/log_output/hours.txt
+	Writing output to ../temp/log_output/hours.txt
 	Output written successfully!!
 
-	Writing output to temp/log_output/blocked.txt
+	Writing output to ../temp/log_output/blocked.txt
 	Output written successfully!!
 
 	--- 0.0247581005096 seconds ---
